@@ -1,0 +1,6 @@
+----WINDOWS----
+Check image quality : 
+arcoreimg.exe eval-img --input_image_path=dog.png
+
+Create an image database file :
+arcoreimg.exe build-db --input_images_directory=/path/to/images --output_db_path=/path/to/myimages.imgdb
