@@ -1,7 +1,10 @@
 package com.livrevivant;
 
+import android.media.MediaPlayer;
+import android.net.Uri;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 
@@ -10,9 +13,12 @@ import com.google.ar.core.Frame;
 import com.google.ar.core.TrackingState;
 import com.google.ar.sceneform.FrameTime;
 import com.google.ar.sceneform.ux.ArFragment;
+import com.livrevivant.augmentedImage.AugmentedImageList;
 import com.livrevivant.augmentedImage.AugmentedImageNode;
+import com.livrevivant.augmentedImage.AugmentedImageVideo;
 import com.livrevivant.common.helpers.SnackbarHelper;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -22,9 +28,11 @@ public class MainActivity extends AppCompatActivity {
     private ArFragment arFragment;
     private ImageView fitToScanView;
 
-    // Augmented image and its associated center pose anchor, keyed by the augmented image in
-    // the database.
-    private final Map<AugmentedImage, AugmentedImageNode> augmentedImageMap = new HashMap<>();
+    private AugmentedImageList imageList = new AugmentedImageList();
+    private Map<String, Integer> videos = new HashMap<>();
+
+    private final float SECONDS_STOP_VIDEO = 0.5f;
+    private float timeCount = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,14 +43,21 @@ public class MainActivity extends AppCompatActivity {
         fitToScanView = findViewById(R.id.image_view_fit_to_scan);
 
         arFragment.getArSceneView().getScene().addOnUpdateListener(this::onUpdateFrame);
+
+        initVideos();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (augmentedImageMap.isEmpty()) {
+        if (imageList.isEmpty()) {
             fitToScanView.setVisibility(View.VISIBLE);
         }
+    }
+
+    private void initVideos() {
+        videos.put("image1.jpg", R.raw.small);
+        videos.put("default.jpg", R.raw.sample);
     }
 
     /**
@@ -50,8 +65,10 @@ public class MainActivity extends AppCompatActivity {
      *
      * @param frameTime - time since last frame.
      */
+
     private void onUpdateFrame(FrameTime frameTime) {
         Frame frame = arFragment.getArSceneView().getArFrame();
+        timeCount += frameTime.getDeltaSeconds();
 
         // If there is no frame or ARCore is not tracking yet, just return.
         if (frame == null || frame.getCamera().getTrackingState() != TrackingState.TRACKING) {
@@ -60,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
 
         Collection<AugmentedImage> updatedAugmentedImages =
                 frame.getUpdatedTrackables(AugmentedImage.class);
+
         for (AugmentedImage augmentedImage : updatedAugmentedImages) {
             switch (augmentedImage.getTrackingState()) {
                 case PAUSED:
@@ -74,18 +92,31 @@ public class MainActivity extends AppCompatActivity {
                     fitToScanView.setVisibility(View.GONE);
 
                     // Create a new anchor for newly found images.
-                    if (!augmentedImageMap.containsKey(augmentedImage)) {
+                    if (!imageList.contains(augmentedImage)) {
                         AugmentedImageNode node = new AugmentedImageNode(this);
-                        node.setImage(augmentedImage);
-                        augmentedImageMap.put(augmentedImage, node);
+                        node.setImageWithVideo(augmentedImage, MediaPlayer.create(this, videos.get(augmentedImage.getName())));
+
+                        imageList.add(new AugmentedImageVideo(augmentedImage, node));
                         arFragment.getArSceneView().getScene().addChild(node);
                     }
+
+                    imageList.get(augmentedImage).setCameraTracking(true);
                     break;
 
                 case STOPPED:
-                    augmentedImageMap.remove(augmentedImage);
+                    if (imageList.contains(augmentedImage)) {
+                        imageList.remove(augmentedImage);
+                    }
+
                     break;
             }
+        }
+
+        if (timeCount > SECONDS_STOP_VIDEO) {
+            imageList.removeIfNotTracking();
+            timeCount = 0;
+
+            imageList.setAllCameraTracking(false);
         }
     }
 }

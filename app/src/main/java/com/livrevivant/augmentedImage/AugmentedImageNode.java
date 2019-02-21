@@ -20,12 +20,10 @@ public class AugmentedImageNode extends AnchorNode {
 
     private static final String TAG = "AugmentedImageNode";
 
-    // The augmented image represented by this node.
-    private AugmentedImage image;
-
     private static ModelRenderable videoRenderable;
     private ExternalTexture texture;
     private Context context;
+    private MediaPlayer mediaPlayer = null;
 
     // The color to filter out of the video.
     private static final Color CHROMA_KEY_COLOR = new Color(0.1843f, 1.0f, 0.098f);
@@ -62,16 +60,8 @@ public class AugmentedImageNode extends AnchorNode {
      * relative to the center of the image, which is the parent node of the corners.
      */
     @SuppressWarnings({"AndroidApiChecker", "FutureReturnValueIgnored"})
-    public void setImage(AugmentedImage image) {
-        this.image = image;
-        // Create an Android MediaPlayer to capture the video on the external texture's surface.
-        MediaPlayer mediaPlayer = null;
-
-        if (image.getName().contains("image1")) {
-            mediaPlayer = MediaPlayer.create(context, R.raw.small);
-        } else {
-            mediaPlayer = MediaPlayer.create(context, R.raw.sample);
-        }
+    public void setImageWithVideo(AugmentedImage image, MediaPlayer video) {
+        this.mediaPlayer = video;
 
         mediaPlayer.setSurface(texture.getSurface());
         mediaPlayer.setLooping(true);
@@ -92,8 +82,6 @@ public class AugmentedImageNode extends AnchorNode {
         videoNode.setLocalScale( new Vector3(
                         image.getExtentX() , image.getExtentZ(),  0.5f));
 
-
-
         // Start playing the video when the first node is placed.
         if (!mediaPlayer.isPlaying()) {
             mediaPlayer.start();
@@ -113,7 +101,7 @@ public class AugmentedImageNode extends AnchorNode {
         }
     }
 
-    public AugmentedImage getImage() {
-        return image;
+    public MediaPlayer getMediaPlayer() {
+        return mediaPlayer;
     }
 }
